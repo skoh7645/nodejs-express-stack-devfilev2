@@ -1,0 +1,100 @@
+schemaVersion: 2.0.0
+name: nodejs-express-stack
+projects:
+  - name: project   
+    git:
+      location: "https://github.com/skoh7645/nodejs-express-template-devfilev2.git" # templates are in separate repos and look like https://github.com/appsody/stacks/tree/master/incubator/nodejs-express/templates/default
+components:
+  - container:
+      alias: nodejs-express-build
+      name: nodejs-express-build
+      image:  node:12
+      memoryLimit: 512Mi
+      command: ['tail']
+      args: [ '-f', '/dev/null']
+      mountSources: true # only need this for build container
+      sourceMapping: "/project/user-app" # where to map user's cwd to in the container
+      repoMappings:
+        - srcPath: "/project" # mount stack provided resources from the git repo in /project dir to /project in the container
+          destPath: "/project"
+      volumes:
+      - name: source
+        containerPath: /project/user-app
+  - container:
+      alias: nodejs-express-run
+      name: nodejs-express-run
+      image: node:alpine3.11
+      memoryLimit: 512Mi
+      command: ['tail']
+      args: [ '-f', '/dev/null']
+      endpoints:
+        - name: nodejs-express
+          configuration:
+              protocol: tcp
+              scheme: http
+          targetPort: 3000
+      mountSources: false
+      repoMappings:
+        - srcPath: "/project" 
+          destPath: "/project"
+      volumes:
+      - name: source
+        containerPath: /project/user-app
+
+commands:
+  - exec:
+      name: prep
+      alias: download dependencies # APPSODY_PREP
+      component: nodejs-express-build # references component alias
+      commandLine: npm install --prefix user-app # using the script https://github.com/appsody/stacks/blob/master/incubator/nodejs-express/image/project/run-stack.sh which should be included in the image?
+      workdir: /project
+      group: 
+        name: build
+  - exec:
+      name: run
+      alias: run the app
+      component: nodejs-express-run
+      commandLine: npm start
+      workdir: /project
+      group: 
+        name: run
+  - exec:
+      name: debug
+      alias: run the app (debugging enabled)
+      component: nodejs-express-run
+      commandLine: npm run debug
+      workdir: /project
+      group: 
+        name: debug
+  - exec:
+      name: test
+      alias: run the app test suite
+      component: nodejs-express-build
+      commandLine: npm test && npm test --prefix user-app
+      workdir: /project
+      group: 
+        name: test
+  # - exec:
+  #     alias: stop the app
+  #     component: nodejs-express-project
+  #     commandLine: >-
+  #         node_server_pids=$(pgrep -fx '.*nodemon (--inspect )?app.js' | tr "\\n" " ") &&
+  #         echo "Stopping node server with PIDs: ${node_server_pids}" && 
+  #         kill -15 ${node_server_pids} &>/dev/null && echo 'Done.'
+  - vscodeLaunch:
+      alias: Attach remote debugger
+      inlined: |
+        {
+            "version": "0.2.0",
+            "configurations": [
+                {
+                    "name": "Appsody: Attach node debugger",
+                    "type": "node",
+                    "request": "attach",
+                    "port": 9229,
+                    "remoteRoot": "/project/user-app",
+                    "localRoot": "${workspaceFolder}",
+                    "protocol": "inspector"
+                }
+            ]
+        }
