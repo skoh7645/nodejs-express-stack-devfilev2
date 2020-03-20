@@ -46,7 +46,7 @@ commands:
       name: prep
       alias: download dependencies # APPSODY_PREP
       component: nodejs-express-build # references component alias
-      commandLine: npm install --prefix user-app # using the script https://github.com/appsody/stacks/blob/master/incubator/nodejs-express/image/project/run-stack.sh which should be included in the image?
+      commandLine: npm install && npm install --prefix user-app # we could have the stack `npm install` already completed before running these commands by using initContainers
       workdir: /project
       group: 
         name: build
